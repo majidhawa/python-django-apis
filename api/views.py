@@ -12,15 +12,11 @@ from teacher.models import Teacher
 
 class StudentListViews(APIView):
     def get(self, request):
-        student = Student.objects.all()
-        serializer = StudentSerializer(student, many=True)
-    def post(self, request):
-        serializer = StudentSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data,status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        students = Student.objects.all()
+        first_name = request.query_params.get("first_name")
+        if first_name:
+            students = students.filter(first_name=first_name)
+        serializer = StudentSerializer(students, many=True)
         return Response(serializer.data)
 class TeacherListViews(APIView):
     def get(self, request):
@@ -163,3 +159,64 @@ class Class_PeriodDetailView(APIView):
         class_period= Class_Period.objects.get( id = id)
         class_period.delete()
         return Response(status=status.HTTP_202_ACCEPTED)
+class AssignStudentToClass(APIView):
+    def post(self, request, class_period_id):
+        try:
+            class_period = Class_Period.objects.get(id=class_period_id)
+        except Class_Period.DoesNotExist:
+            return Response({'error': 'Class period not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        student_id = request.data.get('student_id')
+        try:
+            student = Student.objects.get(id=student_id)
+        except Student.DoesNotExist:
+            return Response({'error': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        class_period.student = student
+        class_period.save()
+
+        serializer = Class_PeriodSerializer(class_period)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+class AssignTeacherToCourse(APIView):
+    def post(self, request, course_id):
+        try:
+            course = Courses.objects.get(id=course_id)
+        except Courses.DoesNotExist:
+            return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        teacher_id = request.data.get('teacher_id')
+        try:
+            teacher = Teacher.objects.get(id=teacher_id)
+        except Teacher.DoesNotExist:
+            return Response({'error': 'Teacher not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        course.teacher = teacher
+        course.save()
+
+        serializer = CourseSerializer(course)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class AssignTeacherToClassroom(APIView):
+    def post(self, request, classroom_id):
+        try:
+            classroom = Classroom.objects.get(id=classroom_id)
+        except Classroom.DoesNotExist:
+            return Response({'error': 'Classroom not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        teacher_id = request.data.get('teacher_id')
+        try:
+            teacher = Teacher.objects.get(id=teacher_id)
+        except Teacher.DoesNotExist:
+            return Response({'error': 'Teacher not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        classroom.class_teacher = teacher
+        classroom.save()
+
+        serializer = ClassroomSerializer(classroom)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+class WeeklyTimetable(APIView):
+    def get(self, request):
+        class_periods = Class_Period.objects.all()
+        serializer = Class_PeriodSerializer(class_periods, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
